@@ -1,0 +1,57 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# -----------------------------
+# Soil parameters
+# -----------------------------
+depth = np.array([2, 4, 6, 8, 10])       # m
+unit_weight = 20                          # kN/m³
+water_unit_weight = 9.81                  # kN/m³
+water_table = 2                            # m
+
+# -----------------------------
+# Stress calculations
+# -----------------------------
+total_stress = unit_weight * depth
+
+pore_pressure = np.where(
+    depth > water_table,
+    water_unit_weight * (depth - water_table),
+    0
+)
+
+effective_stress = total_stress - pore_pressure
+
+# -----------------------------
+# Create results table
+# -----------------------------
+data = pd.DataFrame({
+    "Depth (m)": depth,
+    "Total Stress (kPa)": total_stress,
+    "Pore Pressure (kPa)": pore_pressure,
+    "Effective Stress (kPa)": effective_stress
+})
+
+print("\nSoil Stress Analysis")
+print(data)
+
+# -----------------------------
+# Plot stresses
+# -----------------------------
+plt.figure(figsize=(7, 6))
+
+plt.plot(total_stress, depth, marker="o", label="Total Stress")
+plt.plot(pore_pressure, depth, marker="s", label="Pore Pressure")
+plt.plot(effective_stress, depth, marker="^", label="Effective Stress")
+
+plt.gca().invert_yaxis()
+
+plt.xlabel("Stress (kPa)")
+plt.ylabel("Depth (m)")
+plt.title("Total, Pore and Effective Stress")
+plt.grid(True)
+plt.legend()
+
+plt.tight_layout()
+plt.show()
