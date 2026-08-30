@@ -1,0 +1,210 @@
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+# ==================================================
+# CONSOLIDATION SETTLEMENT ANALYSIS
+# ==================================================
+
+# --------------------------------------------------
+# 1. Soil parameters
+# --------------------------------------------------
+
+sigma_v0 = 100.0       # Initial effective vertical stress (kPa)
+e0 = 1.00              # Initial void ratio
+
+# Clay layer thicknesses (m)
+H_values = [5, 10, 15]
+
+# Compression indices
+Cc_values = [0.20, 0.30, 0.40]
+
+# Stress increments (kPa)
+delta_sigma_values = np.linspace(0, 200, 100)
+
+
+# --------------------------------------------------
+# 2. Create results folder
+# --------------------------------------------------
+
+os.makedirs("results", exist_ok=True)
+
+
+# --------------------------------------------------
+# 3. Calculate consolidation settlement
+#
+# Sc = H * Cc/(1+e0) *
+#      log10(sigma_vf / sigma_v0)
+# --------------------------------------------------
+
+results = []
+
+for H in H_values:
+
+    for Cc in Cc_values:
+
+        for delta_sigma in delta_sigma_values:
+
+            sigma_vf = sigma_v0 + delta_sigma
+
+            # Avoid log10(1) problems at zero stress
+            settlement = (
+                H * Cc / (1 + e0)
+                * np.log10(sigma_vf / sigma_v0)
+            )
+
+            results.append({
+                "Layer Thickness (m)": H,
+                "Compression Index (Cc)": Cc,
+                "Stress Increase (kPa)": delta_sigma,
+                "Final Effective Stress (kPa)": sigma_vf,
+                "Settlement (m)": settlement
+            })
+
+
+# --------------------------------------------------
+# 4. Create DataFrame
+# --------------------------------------------------
+
+df = pd.DataFrame(results)
+
+print("\nCONSOLIDATION SETTLEMENT RESULTS")
+print("-" * 70)
+
+print(df.head(10).to_string(index=False))
+
+
+# --------------------------------------------------
+# 5. Save complete table as CSV
+# --------------------------------------------------
+
+csv_file = "results/consolidation_results.csv"
+
+df.to_csv(
+    csv_file,
+    index=False
+)
+
+print(f"\nCSV table saved to: {csv_file}")
+
+
+# --------------------------------------------------
+# 6. Create comparison table at Δσ = 100 kPa
+# --------------------------------------------------
+
+delta_sigma_reference = 100.0
+
+reference_results = []
+
+for H in H_values:
+
+    for Cc in Cc_values:
+
+        sigma_vf = sigma_v0 + delta_sigma_reference
+
+        settlement = (
+            H * Cc / (1 + e0)
+            * np.log10(sigma_vf / sigma_v0)
+        )
+
+        reference_results.append({
+            "H (m)": H,
+            "Cc": Cc,
+            "Initial Stress (kPa)": sigma_v0,
+            "Stress Increase (kPa)": delta_sigma_reference,
+            "Final Stress (kPa)": sigma_vf,
+            "Settlement (m)": settlement
+        })
+
+
+reference_df = pd.DataFrame(reference_results)
+
+reference_csv = "results/consolidation_summary.csv"
+
+reference_df.to_csv(
+    reference_csv,
+    index=False
+)
+
+
+# --------------------------------------------------
+# 7. Print summary table
+# --------------------------------------------------
+
+print("\nSUMMARY TABLE")
+print("-" * 70)
+
+print(
+    reference_df.to_string(
+        index=False,
+        float_format=lambda x: f"{x:.3f}"
+    )
+)
+
+
+# --------------------------------------------------
+# 8. Plot settlement curves
+# --------------------------------------------------
+
+plt.figure(figsize=(10, 6))
+
+for H in H_values:
+
+    for Cc in Cc_values:
+
+        subset = df[
+            (df["Layer Thickness (m)"] == H)
+            &
+            (df["Compression Index (Cc)"] == Cc)
+        ]
+
+        plt.plot(
+            subset["Stress Increase (kPa)"],
+            subset["Settlement (m)"],
+            label=f"H = {H} m, Cc = {Cc}"
+        )
+
+
+# --------------------------------------------------
+# 9. Plot formatting
+# --------------------------------------------------
+
+plt.xlabel("Increase in Effective Stress (kPa)")
+plt.ylabel("Consolidation Settlement (m)")
+
+plt.title(
+    "Effect of Clay Thickness and Compression Index "
+    "on Consolidation Settlement"
+)
+
+plt.grid(True)
+plt.legend(
+    loc="upper left",
+    fontsize=9
+)
+
+plt.tight_layout()
+
+
+# --------------------------------------------------
+# 10. Save plot as PNG
+# --------------------------------------------------
+
+png_file = "results/consolidation_settlement.png"
+
+plt.savefig(
+    png_file,
+    dpi=300,
+    bbox_inches="tight"
+)
+
+print(f"\nPNG figure saved to: {png_file}")
+
+
+# --------------------------------------------------
+# 11. Display plot
+# --------------------------------------------------
+
+plt.show()
