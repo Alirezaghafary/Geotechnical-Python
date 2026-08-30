@@ -1,0 +1,211 @@
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+# ==================================================
+# SLOPE FACTOR OF SAFETY ANALYSIS
+# Ordinary (Fellenius) Method
+# ==================================================
+
+# --------------------------------------------------
+# 1. Soil and slope parameters
+# --------------------------------------------------
+
+c_values = [10, 20, 30]          # Effective cohesion (kPa)
+phi_values = [20, 25, 30]        # Effective friction angle (degrees)
+
+gamma = 18.0                     # Unit weight (kN/m³)
+slope_height = 10.0              # Slope height (m)
+slope_angle = 30.0               # Slope angle (degrees)
+
+n_slices = 10                    # Number of slices
+
+
+# --------------------------------------------------
+# 2. Create results folder
+# --------------------------------------------------
+
+os.makedirs("results", exist_ok=True)
+
+
+# --------------------------------------------------
+# 3. Slice geometry
+# --------------------------------------------------
+
+width = slope_height / n_slices
+
+alpha = np.full(
+    n_slices,
+    np.radians(slope_angle)
+)
+
+slice_area = (
+    width * slope_height / 2
+)
+
+slice_weight = (
+    gamma * slice_area / n_slices
+)
+
+weights = np.full(
+    n_slices,
+    slice_weight
+)
+
+
+# --------------------------------------------------
+# 4. Factor of Safety calculation
+# --------------------------------------------------
+
+results = []
+
+for c in c_values:
+
+    for phi in phi_values:
+
+        phi_rad = np.radians(phi)
+
+        resisting_force = np.sum(
+            c * width
+            + weights
+            * np.cos(alpha)
+            * np.tan(phi_rad)
+        )
+
+        driving_force = np.sum(
+            weights
+            * np.sin(alpha)
+        )
+
+        FS = resisting_force / driving_force
+
+        results.append({
+            "Cohesion (kPa)": c,
+            "Friction Angle (deg)": phi,
+            "Factor of Safety": FS
+        })
+
+
+# --------------------------------------------------
+# 5. Create DataFrame
+# --------------------------------------------------
+
+df = pd.DataFrame(results)
+
+print("\nSLOPE FACTOR OF SAFETY RESULTS")
+print("-" * 50)
+
+print(
+    df.to_string(
+        index=False,
+        float_format=lambda x: f"{x:.3f}"
+    )
+)
+
+
+# --------------------------------------------------
+# 6. Save results as CSV
+# --------------------------------------------------
+
+csv_file = (
+    "results/slope_factor_of_safety.csv"
+)
+
+df.to_csv(
+    csv_file,
+    index=False
+)
+
+print(
+    f"\nCSV file saved to: {csv_file}"
+)
+
+
+# --------------------------------------------------
+# 7. Save results as Excel
+# --------------------------------------------------
+
+excel_file = (
+    "results/slope_factor_of_safety.xlsx"
+)
+
+df.to_excel(
+    excel_file,
+    index=False,
+    sheet_name="FS Results"
+)
+
+print(
+    f"Excel file saved to: {excel_file}"
+)
+
+
+# --------------------------------------------------
+# 8. Plot Factor of Safety
+# --------------------------------------------------
+
+plt.figure(figsize=(9, 6))
+
+for c in c_values:
+
+    subset = df[
+        df["Cohesion (kPa)"] == c
+    ]
+
+    plt.plot(
+        subset["Friction Angle (deg)"],
+        subset["Factor of Safety"],
+        marker="o",
+        label=f"c = {c} kPa"
+    )
+
+
+# --------------------------------------------------
+# 9. Plot formatting
+# --------------------------------------------------
+
+plt.xlabel(
+    "Friction Angle, φ' (degrees)"
+)
+
+plt.ylabel(
+    "Factor of Safety, FS"
+)
+
+plt.title(
+    "Effect of Cohesion and Friction Angle "
+    "on Slope Factor of Safety"
+)
+
+plt.grid(True)
+plt.legend()
+
+plt.tight_layout()
+
+
+# --------------------------------------------------
+# 10. Save plot as PNG
+# --------------------------------------------------
+
+png_file = (
+    "results/slope_factor_of_safety.png"
+)
+
+plt.savefig(
+    png_file,
+    dpi=300,
+    bbox_inches="tight"
+)
+
+print(
+    f"PNG figure saved to: {png_file}"
+)
+
+
+# --------------------------------------------------
+# 11. Display plot
+# --------------------------------------------------
+
+plt.show()
