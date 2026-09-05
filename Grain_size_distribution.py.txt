@@ -1,0 +1,415 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+def grain_size_analysis(
+    US_sieve,
+    weight_retained,
+    particle_size
+):
+
+    # ========================================================
+    # 1. CHECK INPUT DATA
+    # ========================================================
+
+    if len(US_sieve) != len(weight_retained):
+        raise ValueError(
+            "US_sieve and weight_retained must have "
+            "the same length."
+        )
+
+    if len(particle_size) != len(weight_retained) - 1:
+        raise ValueError(
+            "particle_size must contain all sieve sizes "
+            "except Pan."
+        )
+
+
+    # ========================================================
+    # 2. TOTAL MASS
+    # ========================================================
+
+    weight_total = np.sum(weight_retained)
+
+
+    # ========================================================
+    # 3. PERCENT RETAINED
+    # ========================================================
+
+    percent_retained = (
+        weight_retained / weight_total
+    ) * 100
+
+
+    # ========================================================
+    # 4. CUMULATIVE PERCENT RETAINED
+    # ========================================================
+
+    cumulative_retained = np.cumsum(
+        percent_retained
+    )
+
+
+    # ========================================================
+    # 5. PERCENT PASSING
+    # ========================================================
+
+    passing_all = (
+        100 - cumulative_retained
+    )
+
+    # Remove Pan
+    passing = passing_all[:-1]
+
+
+    # ========================================================
+    # 6. DATA TABLE
+    # ========================================================
+
+    Data = pd.DataFrame({
+
+        "US sieve": US_sieve[:-1],
+
+        "Particle size (mm)": particle_size,
+
+        "Mass retained (g)": weight_retained[:-1],
+
+        "Percent retained (%)":
+            percent_retained[:-1],
+
+        "Cumulative retained (%)":
+            cumulative_retained[:-1],
+
+        "Percent passing (%)":
+            passing
+    })
+
+
+    # ========================================================
+    # 7. D-VALUE FUNCTION
+    # ========================================================
+
+    def get_D(target):
+
+        log_size = np.log10(
+            particle_size
+        )
+
+        log_D = np.interp(
+            target,
+            passing[::-1],
+            log_size[::-1]
+        )
+
+        return 10 ** log_D
+
+
+    # ========================================================
+    # 8. D10, D30, D50, D60
+    # ========================================================
+
+    D10 = get_D(10)
+    D30 = get_D(30)
+    D50 = get_D(50)
+    D60 = get_D(60)
+
+
+    # ========================================================
+    # 9. Cu AND Cc
+    # ========================================================
+
+    Cu = D60 / D10
+
+    Cc = (
+        D30 ** 2
+    ) / (
+        D10 * D60
+    )
+
+
+    # ========================================================
+    # 10. FINES, SAND AND GRAVEL
+    # ========================================================
+
+    fines = passing[-1]
+
+    coarse = 100 - fines
+
+    gravel = percent_retained[0]
+
+    sand = coarse - gravel
+
+
+    # ========================================================
+    # 11. COARSE FRACTION
+    # ========================================================
+
+    gravel_in_coarse = (
+        gravel / coarse
+    ) * 100
+
+    sand_in_coarse = (
+        sand / coarse
+    ) * 100
+
+
+    # ========================================================
+    # 12. USCS CLASSIFICATION
+    # ========================================================
+
+    if fines < 5:
+
+        if gravel_in_coarse > 50:
+
+            if Cu >= 4 and 1 <= Cc <= 3:
+
+                USCS = "GW - Well-graded Gravel"
+
+            else:
+
+                USCS = "GP - Poorly graded Gravel"
+
+        else:
+
+            if Cu >= 6 and 1 <= Cc <= 3:
+
+                USCS = "SW - Well-graded Sand"
+
+            else:
+
+                USCS = "SP - Poorly graded Sand"
+
+    else:
+
+        USCS = "Requires fines classification"
+
+
+    # ========================================================
+    # 13. PRINT RESULTS
+    # ========================================================
+
+    print("\n===================================")
+    print("      GRAIN SIZE ANALYSIS")
+    print("===================================")
+
+    print(
+        f"Total mass = {weight_total:.2f} g"
+    )
+
+    print(
+        f"D10 = {D10:.3f} mm"
+    )
+
+    print(
+        f"D30 = {D30:.3f} mm"
+    )
+
+    print(
+        f"D50 = {D50:.3f} mm"
+    )
+
+    print(
+        f"D60 = {D60:.3f} mm"
+    )
+
+    print(
+        f"Cu = {Cu:.3f}"
+    )
+
+    print(
+        f"Cc = {Cc:.3f}"
+    )
+
+    print(
+        f"Gravel = {gravel:.2f}%"
+    )
+
+    print(
+        f"Sand = {sand:.2f}%"
+    )
+
+    print(
+        f"Fines = {fines:.2f}%"
+    )
+
+    print(
+        f"USCS = {USCS}"
+    )
+
+
+    # ========================================================
+    # 14. PLOT
+    # ========================================================
+
+    plt.figure()
+
+    plt.plot(
+        particle_size,
+        passing,
+        marker="o"
+    )
+
+
+    # D values
+
+    D_values = [
+        D10,
+        D30,
+        D50,
+        D60
+    ]
+
+    P_values = [
+        10,
+        30,
+        50,
+        60
+    ]
+
+
+    for D, P in zip(
+        D_values,
+        P_values
+    ):
+
+        plt.scatter(
+            D,
+            P
+        )
+
+        plt.axvline(
+            D,
+            linestyle="--",
+            alpha=0.5
+        )
+
+        plt.axhline(
+            P,
+            linestyle="--",
+            alpha=0.5
+        )
+
+        plt.text(
+            D,
+            P,
+            f"D{P} = {D:.3f} mm"
+        )
+
+
+    plt.xscale("log")
+
+    plt.gca().invert_xaxis()
+
+    plt.xlabel(
+        "Particle size (mm)"
+    )
+
+    plt.ylabel(
+        "Percent passing (%)"
+    )
+
+    plt.title(
+        "Particle-Size Distribution Curve"
+    )
+
+    plt.grid(
+        True,
+        which="both"
+    )
+
+    plt.tight_layout()
+
+    plt.show()
+
+
+    # ========================================================
+    # 15. RETURN RESULTS
+    # ========================================================
+
+    results = {
+
+        "Total mass (g)": weight_total,
+
+        "D10 (mm)": D10,
+
+        "D30 (mm)": D30,
+
+        "D50 (mm)": D50,
+
+        "D60 (mm)": D60,
+
+        "Cu": Cu,
+
+        "Cc": Cc,
+
+        "Gravel (%)": gravel,
+
+        "Sand (%)": sand,
+
+        "Fines (%)": fines,
+
+        "USCS": USCS
+    }
+
+    return Data, results
+# ============================================================
+# INPUT DATA
+# ============================================================
+
+US_sieve = np.array([
+    4, 10, 20, 40, 60, 80, 100, 200, 0
+])
+
+weight_retained = np.array([
+    0, 40, 60, 89, 140, 122, 210, 56, 12
+])
+
+particle_size = np.array([
+    4.75, 2.00, 0.85, 0.425,
+    0.25, 0.18, 0.15, 0.075
+])
+
+
+# ============================================================
+# RUN ANALYSIS
+# ============================================================
+
+Data, results = grain_size_analysis(
+    US_sieve,
+    weight_retained,
+    particle_size
+)
+
+
+# ============================================================
+# SHOW TABLE
+# ============================================================
+
+print("\nGrain Size Analysis Table:")
+print(Data)
+# ============================================================
+# 16. EXPORT RESULTS TO CSV
+# ============================================================
+
+# Export grain size table
+Data.to_csv(
+    "grain_size_table.csv",
+    index=False
+)
+
+# Convert results dictionary to DataFrame
+Results_df = pd.DataFrame(
+    [results]
+)
+
+# Export final results
+Results_df.to_csv(
+    "grain_size_results.csv",
+    index=False
+)
+
+print("\nCSV files created successfully.")
+
+print("1. grain_size_table.csv")
+print("2. grain_size_results.csv")
